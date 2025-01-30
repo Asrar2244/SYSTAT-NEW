@@ -1,0 +1,10 @@
+2025-01-31 02:34:02,206 z_test_api.py INFO Received data: {'Alpha_value': 0.05, 'Yates_correction': 0, 'Confidence_interval': 95, 'Data': [[40, 0.3], [60, 0.7]]}
+2025-01-31 02:34:02,206 z_test_api.py INFO Group 1: Size=40, Proportion=0.3
+2025-01-31 02:34:02,206 z_test_api.py INFO Group 2: Size=60, Proportion=0.7
+2025-01-31 02:34:02,214 z_test_api.py INFO Z-score: -3.9317854974639226
+2025-01-31 02:34:02,214 z_test_api.py INFO P-value: 8.431728410163153e-05
+2025-01-31 02:34:02,214 z_test_api.py INFO Confidence Interval: (-0.5993968374728752, -0.20060316252712476)
+2025-01-31 02:34:02,214 z_test_api.py INFO Power of the test: 0.9756850072012768
+2025-01-31 02:34:02,214 z_test_api.py INFO Conclusion: There is a significant difference in the proportions.
+2025-01-31 02:34:02,214 _internal.py INFO 127.0.0.1 - - [31/Jan/2025 02:34:02] "POST /hyphothesis/api/z-test HTTP/1.1" 200 -
+2025-01-31 02:34:30,175 _internal.py INFO  * Detected change in 'C:\\Users\\faisa\\OneDrive\\Desktop\\SYSTAT-NEW\\hyphothesis\\app\\__init__.py', reloading
