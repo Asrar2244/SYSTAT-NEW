@@ -1,27 +1,26 @@
+"""Module for performing a two-proportion Z-test with statistical calculations."""
+import math
 from flask import Blueprint, request, jsonify
+from scipy.stats import norm
 from .helpers.constant import Z_TEST_LOG_FILE_PATH
 from .helpers.logger import Logger
-import math
-from scipy.stats import norm
 
 ztest_api = Blueprint('ztest_api', __name__)
 
 @ztest_api.route('/z-test', methods=['POST'])
 def perform_z_test():
+    """Perform a two-proportion Z-test and return the statistical results and conclusion."""
     logger = Logger(Z_TEST_LOG_FILE_PATH)
     try:
-        # Get data from request
         data = request.get_json()
 
-        # Extract parameters and input data
         alpha_value = data.get('Alpha_value', 0.05)
         yates_correction = data.get('Yates_correction', 0)
         confidence_interval = data.get('Confidence_interval', 95)
         input_data = data.get('Data', [])
-        
+
         logger.info(f"Received data: {data}")
 
-        # Input validation
         if not (0 <= alpha_value <= 1):
             logger.error(f"Invalid Alpha_value: {alpha_value}. Must be between 0 and 1.")
             return jsonify({"error": "Alpha_value must be between 0 and 1."}), 400
@@ -42,11 +41,6 @@ def perform_z_test():
             logger.error(f"Invalid Proportions: {prop1}, {prop2}. Proportions must be between 0 and 1.")
             return jsonify({"error": "Proportions must be between 0 and 1."}), 400
 
-        # Log the input data
-        logger.info(f"Group 1: Size={size1}, Proportion={prop1}")
-        logger.info(f"Group 2: Size={size2}, Proportion={prop2}")
-
-        # Apply Yates continuity correction if required
         if yates_correction == 1:
             logger.info("Yates continuity correction applied to calculations.")
 
@@ -69,14 +63,12 @@ def perform_z_test():
         # Conclusion based on p-value
         conclusion = "There is a significant difference in the proportions." if p_value < alpha_value else "No significant difference in the proportions."
 
-        # Log the results
         logger.info(f"Z-score: {z_score}")
         logger.info(f"P-value: {p_value}")
         logger.info(f"Confidence Interval: ({confidence_interval_lower}, {confidence_interval_upper})")
         logger.info(f"Power of the test: {power}")
         logger.info(f"Conclusion: {conclusion}")
 
-        # Prepare the result for output
         result = {
             "message": "Z-test calculation successful",
             "alpha_value": alpha_value,
@@ -99,27 +91,20 @@ def perform_z_test():
             }
         }
 
-        # Return the result as JSON
         return jsonify(result), 200
 
     except ValueError as ve:
-        # Handle invalid value errors (e.g., invalid proportions or sizes)
         logger.error(f"ValueError: {str(ve)}")
         return jsonify({"error": f"Invalid input value: {str(ve)}"}), 400
     except KeyError as ke:
-        # Handle missing keys in the input JSON
         logger.error(f"KeyError: {str(ke)}")
         return jsonify({"error": f"Missing required field: {str(ke)}"}), 400
     except TypeError as te:
-        # Handle type errors (e.g., wrong data types)
         logger.error(f"TypeError: {str(te)}")
         return jsonify({"error": f"Invalid data type: {str(te)}"}), 400
     except ZeroDivisionError as zde:
-        # Handle division by zero (e.g., when sizes are zero)
         logger.error(f"ZeroDivisionError: {str(zde)}")
         return jsonify({"error": "Division by zero encountered during calculation."}), 400
     except Exception as e:
-        # Catch-all for any other unexpected errors
         logger.error(f"Unexpected error: {str(e)}")
         return jsonify({"error": "An unexpected error occurred. Please try again later."}), 500
-
