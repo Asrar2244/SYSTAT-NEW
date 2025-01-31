@@ -1,0 +1,6 @@
+Flask
+pandas
+scipy
+pytest
+pytest-flask
+Flask-Cors
