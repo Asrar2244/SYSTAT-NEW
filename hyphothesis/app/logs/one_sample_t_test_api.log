@@ -1,0 +1,4 @@
+2025-02-08 01:01:09,449 one_sample_t_test_api.py ERROR ValueError: Sample data must contain at least two data points.
+2025-02-08 01:01:09,449 _internal.py INFO 127.0.0.1 - - [08/Feb/2025 01:01:09] "[31m[1mPOST /hyphothesis/api/one-sample-t-test HTTP/1.1[0m" 400 -
+2025-02-08 01:01:19,418 _internal.py INFO 127.0.0.1 - - [08/Feb/2025 01:01:19] "POST /hyphothesis/api/two-sample-t-test HTTP/1.1" 200 -
+2025-02-08 01:02:18,168 _internal.py INFO  * Detected change in 'C:\\Users\\faisa\\OneDrive\\Desktop\\SYSTAT-NEW\\hyphothesis\\app\\tests\\test_two_sample_t_test.py', reloading

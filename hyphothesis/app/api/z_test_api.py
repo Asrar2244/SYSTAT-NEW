@@ -2,21 +2,50 @@
 import math
 from flask import Blueprint, request, jsonify
 from scipy.stats import norm
-from .helpers.constant import Z_TEST_LOG_FILE_PATH
-from .helpers.logger import Logger
+from app.api.helpers.constant import (
+    VALUE_ERROR_MSG,
+    KEY_ERROR_MSG,
+    TYPE_ERROR_MSG,
+    ZERO_DIVISION_ERROR_MSG,
+    INDEX_ERROR_MSG,
+    UNEXPECTED_ERROR_MSG,
+    LOG_VALUE_ERROR,
+    LOG_KEY_ERROR,
+    LOG_TYPE_ERROR,
+    LOG_ZERO_DIVISION_ERROR,
+    LOG_INDEX_ERROR,
+    LOG_UNEXPECTED_ERROR,
+    Z_TEST_LOG_FILE_PATH,
+    ALPHA_VALUE_DEFAULT,
+    YATES_CORRECTION_DEFAULT,
+    CONFIDENCE_INTERVAL_DEFAULT
+)
+from app.api.helpers.logger import Logger
 
 ztest_api = Blueprint('ztest_api', __name__)
 
 @ztest_api.route('/z-test', methods=['POST'])
 def perform_z_test():
     """Perform a two-proportion Z-test and return the statistical results and conclusion."""
+    """
+    Expected JSON input format:
+    {
+        "Alpha_value": 0.05,
+        "Yates_correction": 0,
+        "Confidence_interval": 95,
+        "Data": [
+            [40, 0.3],
+            [60, 0.7]
+        ]
+    }
+    """
     logger = Logger(Z_TEST_LOG_FILE_PATH)
     try:
         data = request.get_json()
 
-        alpha_value = data.get('Alpha_value', 0.05)
-        yates_correction = data.get('Yates_correction', 0)
-        confidence_interval = data.get('Confidence_interval', 95)
+        alpha_value = data.get('Alpha_value', ALPHA_VALUE_DEFAULT)
+        yates_correction = data.get('Yates_correction', YATES_CORRECTION_DEFAULT)
+        confidence_interval = data.get('Confidence_interval', CONFIDENCE_INTERVAL_DEFAULT)
         input_data = data.get('Data', [])
 
         logger.info(f"Received data: {data}")
@@ -40,9 +69,6 @@ def perform_z_test():
         if not (0 <= prop1 <= 1 and 0 <= prop2 <= 1):
             logger.error(f"Invalid Proportions: {prop1}, {prop2}. Proportions must be between 0 and 1.")
             return jsonify({"error": "Proportions must be between 0 and 1."}), 400
-
-        if yates_correction == 1:
-            logger.info("Yates continuity correction applied to calculations.")
 
         # Calculate the Z-test
         # Pooled proportion
@@ -94,17 +120,20 @@ def perform_z_test():
         return jsonify(result), 200
 
     except ValueError as ve:
-        logger.error(f"ValueError: {str(ve)}")
-        return jsonify({"error": f"Invalid input value: {str(ve)}"}), 400
+        logger.error(LOG_VALUE_ERROR.format(str(ve)))
+        return jsonify({"error": VALUE_ERROR_MSG.format(str(ve))}), 400
     except KeyError as ke:
-        logger.error(f"KeyError: {str(ke)}")
-        return jsonify({"error": f"Missing required field: {str(ke)}"}), 400
+        logger.error(LOG_KEY_ERROR.format(str(ke)))
+        return jsonify({"error": KEY_ERROR_MSG.format(str(ke))}), 400
     except TypeError as te:
-        logger.error(f"TypeError: {str(te)}")
-        return jsonify({"error": f"Invalid data type: {str(te)}"}), 400
+        logger.error(LOG_TYPE_ERROR.format(str(te)))
+        return jsonify({"error": TYPE_ERROR_MSG.format(str(te))}), 400
     except ZeroDivisionError as zde:
-        logger.error(f"ZeroDivisionError: {str(zde)}")
-        return jsonify({"error": "Division by zero encountered during calculation."}), 400
+        logger.error(LOG_ZERO_DIVISION_ERROR.format(str(zde)))
+        return jsonify({"error": ZERO_DIVISION_ERROR_MSG}), 400
+    except IndexError as ie:
+        logger.error(LOG_INDEX_ERROR.format(str(ie)))
+        return jsonify({"error": INDEX_ERROR_MSG}), 400
     except Exception as e:
-        logger.error(f"Unexpected error: {str(e)}")
-        return jsonify({"error": "An unexpected error occurred. Please try again later."}), 500
+        logger.error(LOG_UNEXPECTED_ERROR.format(str(e)))
+        return jsonify({"error": UNEXPECTED_ERROR_MSG}), 500
