@@ -15,6 +15,7 @@ POPULATION_MEAN_DEFAULT = 0
 ALTERNATIVE_DEFAULT = "two-sided"
 P_VALUE_REJECT_DEFAULT = 0.05  
 SAMPLE_SIZE_MIN = 2
+EQUAL_VARIANCE_DEFAULT = 0.05
 
 # Error message constants
 INVALID_JSON_ERROR = "Invalid input. Please provide JSON data."
