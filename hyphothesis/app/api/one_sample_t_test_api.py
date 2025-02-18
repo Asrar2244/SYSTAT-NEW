@@ -40,6 +40,7 @@ def perform_one_sample_t_test():
         p_value_reject = float(data.get("P_value_reject", P_VALUE_REJECT_DEFAULT))
         alpha = float(data.get("alpha_value", ALPHA_VALUE_DEFAULT))
         
+        # NOOR - true by default
         shaprio_walk = data.get("shaprio_walk", False)
         kolmo_with_correction = data.get("kolmo_with_correction", False)
         db_fetched = data.get("DB", False)
