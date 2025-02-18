@@ -40,7 +40,7 @@ def perform_one_sample_t_test():
         p_value_reject = float(data.get("P_value_reject", P_VALUE_REJECT_DEFAULT))
         alpha = float(data.get("alpha_value", ALPHA_VALUE_DEFAULT))
         
-        # NOOR - true by default
+        # NOOR shaprio_walk - true by default
         shaprio_walk = data.get("shaprio_walk", False)
         kolmo_with_correction = data.get("kolmo_with_correction", False)
         db_fetched = data.get("DB", False)
@@ -58,13 +58,16 @@ def perform_one_sample_t_test():
             values = data["values"]
             sample_size = values.get("size")
             sample_mean = values.get("mean")
+            # NOOR it will either be standard deviation or standard error not both .get will fail
+            # either have default value of 0 or check if key is there only then access
             sample_std = values.get("deviation")
             standard_error = values.get("standard_error")
 
             # Validate values input
             if not all(isinstance(x, (int, float)) for x in [sample_size, sample_mean]) or (sample_std is None and standard_error is None):
                 raise ValueError("Invalid input: 'size', 'mean', and either 'deviation' or 'standard_error' must be numeric.")
-
+            
+            # NOOR - it might never hit this if loop, the above if loop handles both and will return 
             if sample_std is None and standard_error is None:
                 raise ValueError("Either 'deviation' or 'standard_error' must be provided.")
             
@@ -76,7 +79,7 @@ def perform_one_sample_t_test():
                 if not isinstance(standard_error, (int, float)):
                     raise ValueError("Invalid input: 'standard_error' must be numeric.")
                 sample_std = standard_error * np.sqrt(sample_size)
-
+            # NOOR - this case handled on line 51 
             if sample_size < 2:
                 raise ValueError("Sample size must be at least 2.")
         
@@ -134,6 +137,7 @@ def perform_one_sample_t_test():
             
             if shaprio_walk:
                 shapiro_test_stat, shapiro_p_value = stats.shapiro(sample_data)
+                # NOOR - I think its typo here can we renme to - shaprio_walk
                 normality_tests["Shapiro-Wilk"] = {
                     "Result": "Passed" if shapiro_p_value > 0.05 else "Failed",
                     "P-Value": round(shapiro_p_value, 3)
