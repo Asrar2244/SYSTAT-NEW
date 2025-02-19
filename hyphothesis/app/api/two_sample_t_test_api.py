@@ -39,9 +39,10 @@ def perform_two_sample_t_test():
         equal_variance_reject_threshold = data.get("equal_variance_p_value_to_reject", EQUAL_VARIANCE_DEFAULT)
         confidence_level = data.get("confidence_level", CONFIDENCE_INTERVAL_DEFAULT)
         alpha = float(data.get("alpha_value", ALPHA_VALUE_DEFAULT))
-
+        # NOOR - true by default
         shapiro_wilk = data.get("shapiro_wilk", False)
         kolmo_with_correction = data.get("kolmo_with_correction", False)
+        # NOOR students_ttest and welchs - both are True by default
         students_ttest = data.get("students_ttest", False)
         welchs_ttest = data.get("welchs_ttest", False)
         db_flag = data.get("DB", False)
@@ -79,6 +80,7 @@ def perform_two_sample_t_test():
             values = data["values"]
             mean1, size1, mean2, size2 = values.get("mean1"), values.get("size1"), values.get("mean2"), values.get("size2")
             deviation1, deviation2 = values.get("deviation1"), values.get("deviation2")
+            # NOOR this might fail in some case where onlt std_dev is passed
             standard_error1, standard_error2 = values.get("standard_error1"), values.get("standard_error2")
             if None in [mean1, size1, mean2, size2]:
                 raise ValueError("Mean and size must be provided for both groups.")
