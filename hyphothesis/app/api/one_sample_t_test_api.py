@@ -40,11 +40,12 @@ def perform_one_sample_t_test():
         p_value_reject = float(data.get("P_value_reject", P_VALUE_REJECT_DEFAULT))
         alpha = float(data.get("alpha_value", ALPHA_VALUE_DEFAULT))
         
-        shaprio_walk = data.get("shaprio_walk", False)
+        # NOOR shaprio_walk - true by default
+        shaprio_walk = data.get("shaprio_walk", True)
         kolmo_with_correction = data.get("kolmo_with_correction", False)
         db_fetched = data.get("DB", False)
         
- # Handle input: Either "sample" or "values"
+        # Handle input: Either "sample" or "values"
         if "sample" in data:
             sample_data = data["sample"]
             if not isinstance(sample_data, list) or len(sample_data) < 2:
@@ -57,15 +58,18 @@ def perform_one_sample_t_test():
             values = data["values"]
             sample_size = values.get("size")
             sample_mean = values.get("mean")
-            sample_std = values.get("deviation")
-            standard_error = values.get("standard_error")
+            # NOOR it will either be standard deviation or standard error not both .get will fail
+            # either have default value of 0 or check if key is there only then access
+            sample_std = values.get("deviation", None)  # ASRAR Explicitly set to None if not provided
+            standard_error = values.get("standard_error", None)  #ASRAR Explicitly set to None if not provided
 
             # Validate values input
             if not all(isinstance(x, (int, float)) for x in [sample_size, sample_mean]) or (sample_std is None and standard_error is None):
                 raise ValueError("Invalid input: 'size', 'mean', and either 'deviation' or 'standard_error' must be numeric.")
-
-            if sample_std is None and standard_error is None:
-                raise ValueError("Either 'deviation' or 'standard_error' must be provided.")
+            
+            # NOOR - it might never hit this if loop, the above if loop handles both and will return 
+            #if sample_std is None and standard_error is None:
+              #   raise ValueError("Either 'deviation' or 'standard_error' must be provided.")
             
             if sample_std is not None:
                 if not isinstance(sample_std, (int, float)):
@@ -75,9 +79,9 @@ def perform_one_sample_t_test():
                 if not isinstance(standard_error, (int, float)):
                     raise ValueError("Invalid input: 'standard_error' must be numeric.")
                 sample_std = standard_error * np.sqrt(sample_size)
-
-            if sample_size < 2:
-                raise ValueError("Sample size must be at least 2.")
+            # NOOR - this case handled on line 51 
+            #if sample_size < 2:
+             #   raise ValueError("Sample size must be at least 2.")
         
         else:
             raise KeyError("Missing required input: Provide either 'sample' or 'values'.")
@@ -132,10 +136,11 @@ def perform_one_sample_t_test():
             normality_tests = {}
             
             if shaprio_walk:
-                shapiro_test_stat, shapiro_p_value = stats.shapiro(sample_data)
-                normality_tests["Shapiro-Wilk"] = {
-                    "Result": "Passed" if shapiro_p_value > 0.05 else "Failed",
-                    "P-Value": round(shapiro_p_value, 3)
+                shaprio_test_stat, shaprio_p_value = stats.shapiro(sample_data)
+                # NOOR - I think its typo here can we renme to - shaprio_walk
+                normality_tests["shaprio-walk"] = {
+                    "Result": "Passed" if shaprio_p_value > 0.05 else "Failed",
+                    "P-Value": round(shaprio_p_value, 3)
                 }
             
             if kolmo_with_correction:

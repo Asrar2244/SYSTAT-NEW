@@ -41,7 +41,8 @@ def perform_paired_t_test():
         # Extract parameters
         confidence_level = float(data.get("confidence_level", CONFIDENCE_INTERVAL_DEFAULT))
         alpha = float(data.get("alpha", ALPHA_VALUE_DEFAULT))
-        shaprio_walk = data.get("shaprio_walk", False)
+        # NOOR - this is True by default
+        shaprio_walk = data.get("shaprio_walk", True)  #Asrar: Added default handling for Shapiro-Wilk test flag
         kolmo_with_correction = data.get("kolmo_with_correction", False)
         db_fetched = data.get("db", False)  # Ensure 'db' is fetched
 
@@ -53,6 +54,11 @@ def perform_paired_t_test():
             before, after = data["before"], data["after"]
             before_col, after_col = "before", "after"
 
+        # NOOR - check for some data validity - if pivot func on line 70 catches any data mismatch then
+        # that would be sufficient
+        # treatment - contains only two alternating string (like before/after, today/tomorrow, now/then etc)
+        # each subject - has 2 values of each treatment type
+        # values - int/float
         elif "subject" in data and "treatment" in data and "values" in data:
             # Convert long format to wide format
             df = pd.DataFrame({
@@ -60,17 +66,30 @@ def perform_paired_t_test():
                 "treatment": data["treatment"],
                 "values": data["values"]
             })
+             
+            # Asrar: Added validation to ensure exactly two treatment types exist.
+            unique_treatments = df["treatment"].unique()
+            if len(unique_treatments) != 2:
+                return jsonify({"error": "Invalid format: Exactly two treatment types required."}), 400
+            
 
-            # Pivot the data to wide format
+            # Asrar:  Added validation to ensure each subject has exactly two values (one per treatment)
+            subject_counts = df["subject"].value_counts()
+            if not all(subject_counts == 2):
+                return jsonify({"error": "Invalid format: Each subject must have exactly two values (one per treatment)."}), 400
+            
+
+            # Asrar: Fixed potential issues with pivoting and missing values after transformation
             wide_df = df.pivot(index="subject", columns="treatment", values="values")
+            if wide_df.isnull().values.any():
+                return jsonify({"error": "Invalid format: Missing values after pivoting."}), 400
+            
 
-            if "before" not in wide_df.columns or "after" not in wide_df.columns:
-                return jsonify({"error": "Invalid format: Missing 'before' or 'after' values."}), 400
-
-            # Extract paired values
-            before = wide_df["before"].tolist()
-            after = wide_df["after"].tolist()
-            before_col, after_col = "before", "after"
+            # Asrar: Stored treatment labels dynamically to maintain consistency in output.
+            # Ensured the correct assignment of 'before' and 'after' groups based on treatment labels.
+            treatment_labels = list(wide_df.columns)
+            before, after = wide_df[treatment_labels[0]].tolist(), wide_df[treatment_labels[1]].tolist()
+            before_col, after_col = treatment_labels[0], treatment_labels[1]
 
         else:
             return jsonify({"error": "Invalid input format. Provide 'before'/'after' lists or 'subject', 'treatment', 'values'."}), 400
