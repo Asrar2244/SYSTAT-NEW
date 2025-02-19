@@ -41,6 +41,7 @@ def perform_paired_t_test():
         # Extract parameters
         confidence_level = float(data.get("confidence_level", CONFIDENCE_INTERVAL_DEFAULT))
         alpha = float(data.get("alpha", ALPHA_VALUE_DEFAULT))
+        # NOOR - this is True by default
         shaprio_walk = data.get("shaprio_walk", False)
         kolmo_with_correction = data.get("kolmo_with_correction", False)
         db_fetched = data.get("db", False)  # Ensure 'db' is fetched
@@ -53,6 +54,11 @@ def perform_paired_t_test():
             before, after = data["before"], data["after"]
             before_col, after_col = "before", "after"
 
+        # NOOR - check for some data validity - if pivot func on line 70 catches any data mismatch then
+        # that would be sufficient
+        # treatment - contains only two alternating string (like before/after, today/tomorrow, now/then etc)
+        # each subject - has 2 values of each treatment type
+        # values - int/float
         elif "subject" in data and "treatment" in data and "values" in data:
             # Convert long format to wide format
             df = pd.DataFrame({
@@ -63,7 +69,7 @@ def perform_paired_t_test():
 
             # Pivot the data to wide format
             wide_df = df.pivot(index="subject", columns="treatment", values="values")
-
+            # NOOR - this may not always be the case, can't we have other tratment strings other than befor/after ?
             if "before" not in wide_df.columns or "after" not in wide_df.columns:
                 return jsonify({"error": "Invalid format: Missing 'before' or 'after' values."}), 400
 
