@@ -40,11 +40,11 @@ def perform_two_sample_t_test():
         confidence_level = data.get("confidence_level", CONFIDENCE_INTERVAL_DEFAULT)
         alpha = float(data.get("alpha_value", ALPHA_VALUE_DEFAULT))
         # NOOR - true by default
-        shapiro_wilk = data.get("shapiro_wilk", False)
+        shapiro_wilk = data.get("shapiro_wilk", True)
         kolmo_with_correction = data.get("kolmo_with_correction", False)
         # NOOR students_ttest and welchs - both are True by default
-        students_ttest = data.get("students_ttest", False)
-        welchs_ttest = data.get("welchs_ttest", False)
+        students_ttest = data.get("students_ttest", True)
+        welchs_ttest = data.get("welchs_ttest", True)
         db_flag = data.get("DB", False)
 
         if db_flag:
@@ -76,22 +76,47 @@ def perform_two_sample_t_test():
                 raise ValueError("There must be exactly two groups for a two-sample t-test.")
             group1_key, group2_key = list(grouped.keys())
             group1, group2 = grouped[group1_key], grouped[group2_key]
+
+        # Asrar: Updated input handling for summary statistics:
+        # - Introduced structured keys: 'mean_size_deviation' and 'mean_size_error' to distinguish input types.
+        # - Data is now passed in a structured list format, ensuring clarity and reducing ambiguity.
         elif "values" in data:
             values = data["values"]
-            mean1, size1, mean2, size2 = values.get("mean1"), values.get("size1"), values.get("mean2"), values.get("size2")
-            deviation1, deviation2 = values.get("deviation1"), values.get("deviation2")
-            # NOOR this might fail in some case where onlt std_dev is passed
-            standard_error1, standard_error2 = values.get("standard_error1"), values.get("standard_error2")
-            if None in [mean1, size1, mean2, size2]:
-                raise ValueError("Mean and size must be provided for both groups.")
-            if deviation1 and deviation2:
-                std1, std2 = deviation1, deviation2
-            elif standard_error1 and standard_error2:
-                std1, std2 = standard_error1 * np.sqrt(size1), standard_error2 * np.sqrt(size2)
+            mean_size_deviation = values.get("mean_size_deviation", False)
+            mean_size_error = values.get("mean_size_error", False)
+    
+            if mean_size_deviation:
+                if "mean_size_dev_values" not in values:
+                   raise ValueError("Missing 'mean_size_dev_values' key for mean, size, and deviation input.")
+        
+                groups = values["mean_size_dev_values"]
+                if len(groups) != 2:
+                    raise ValueError("'mean_size_dev_values' must contain exactly two group dictionaries.")
+        
+                mean1, size1, std1 = groups[0]["mean"], groups[0]["size"], groups[0]["devi"]
+                mean2, size2, std2 = groups[1]["mean2"], groups[1]["size2"], groups[1]["dev2"]
+    
+            elif mean_size_error:
+                if "mean_size_error_values" not in values:
+                   raise ValueError("Missing 'mean_size_error_values' key for mean, size, and standard error input.")
+        
+                groups = values["mean_size_error_values"]
+                if len(groups) != 2:
+                    raise ValueError("'mean_size_error_values' must contain exactly two group dictionaries.")
+        
+                mean1, size1, se1 = groups[0]["mean"], groups[0]["size"], groups[0]["err_val"]
+                mean2, size2, se2 = groups[1]["mean2"], groups[1]["size2"], groups[1]["err_val"]
+                std1, std2 = se1 * np.sqrt(size1), se2 * np.sqrt(size2)
+    
             else:
-                raise ValueError("Either standard deviation or standard error must be provided.")
-            group1, group2 = np.random.normal(mean1, std1, size1), np.random.normal(mean2, std2, size2)
+                raise ValueError("Either 'mean_size_deviation' or 'mean_size_error' must be True.")
+    
+            group1 = np.random.normal(mean1, std1, size1)
+            group2 = np.random.normal(mean2, std2, size2)
             group1_key, group2_key = "Group1", "Group2"
+
+
+            
         else:
             raise ValueError("Invalid input format.")
 
