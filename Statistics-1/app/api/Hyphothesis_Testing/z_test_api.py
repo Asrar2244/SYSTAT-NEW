@@ -2,7 +2,7 @@
 import math
 from flask import Blueprint, request, jsonify
 from scipy.stats import norm
-from app.api.helpers.constant import (
+from ..helpers.constant import (
     VALUE_ERROR_MSG,
     KEY_ERROR_MSG,
     TYPE_ERROR_MSG,
@@ -20,7 +20,7 @@ from app.api.helpers.constant import (
     YATES_CORRECTION_DEFAULT,
     CONFIDENCE_INTERVAL_DEFAULT
 )
-from app.api.helpers.logger import Logger
+from ..helpers.logger import Logger
 
 ztest_api = Blueprint('ztest_api', __name__)
 

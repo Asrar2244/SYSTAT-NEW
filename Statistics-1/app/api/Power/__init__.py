@@ -1,0 +1,20 @@
+from flask import Blueprint
+
+Power_api_blueprint = Blueprint('Power_api', __name__)
+
+
+from .t_test_Power_api import ttest_power_api
+from .paired_t_test_Power_api import paired_ttest_power_api
+from .proportions_power_api import proportion_power_api
+from .ANOVA_Power_api import anova_power_api 
+from .Chi_square_Power_api import chisquare_power_api
+from .correlation_Power_api import correlation_power_api
+
+
+
+Power_api_blueprint.register_blueprint(ttest_power_api)
+Power_api_blueprint.register_blueprint(paired_ttest_power_api)
+Power_api_blueprint.register_blueprint(proportion_power_api)
+Power_api_blueprint.register_blueprint(anova_power_api)
+Power_api_blueprint.register_blueprint(chisquare_power_api)
+Power_api_blueprint.register_blueprint(correlation_power_api)

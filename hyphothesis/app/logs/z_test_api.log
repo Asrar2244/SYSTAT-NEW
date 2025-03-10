@@ -1,2 +1,0 @@
-2025-02-07 17:53:45,441 z_test_api.py INFO Received data: {'alternative': 'two-sided', 'column': 'test_scores', 'confidence': 0.95, 'data': [{'group': 'A', 'test_scores': 85}, {'group': 'A', 'test_scores': 90}, {'group': 'B', 'test_scores': 78}, {'group': 'B', 'test_scores': 82}], 'group_column': 'group', 'std1': 10.5, 'std2': 9.8}
-2025-02-07 17:53:45,441 z_test_api.py ERROR Invalid Confidence_interval: 0.95. Must be between 1 and 99.
