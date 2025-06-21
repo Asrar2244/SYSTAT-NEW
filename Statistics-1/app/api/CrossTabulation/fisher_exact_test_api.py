@@ -2,89 +2,94 @@
 Author: Asrar
 Module for performing Fisher's Exact Test. Accepts input data in JSON format,
 computes the test, and returns results including the odds ratio, p-value, 
-expected counts, and conclusion. If any cell count exceeds 100, it prompts
-the user to switch to a Chi-Square Test.
+expected counts, and conclusion. If any cell count or sum of values exceeds 100, 
+it prompts the user to switch to a Chi-Square Test.
 """
 
 import pandas as pd
 from flask import Blueprint, request, jsonify
 from scipy.stats import fisher_exact
 from ..helpers.logger import Logger
+import requests
+import traceback
 from ..helpers.constant import (
     VALUE_ERROR_MSG, KEY_ERROR_MSG, TYPE_ERROR_MSG, INDEX_ERROR_MSG, UNEXPECTED_ERROR_MSG,
     LOG_VALUE_ERROR, LOG_KEY_ERROR, LOG_TYPE_ERROR, LOG_INDEX_ERROR, LOG_UNEXPECTED_ERROR,
     FISHER_EXACT_TEST_LOG_FILE_PATH
 )
-import importlib  # Import module dynamically
 
-# Initialize Blueprint for Fisher's Exact Test
 fisher_exact_test_api = Blueprint('fisher_exact_test_api', __name__)
-
 logger = Logger(FISHER_EXACT_TEST_LOG_FILE_PATH)
 
-def fisher_exact_test_logic(data, db):
-    """
-    Perform Fisher's Exact Test and return results.
-     Expected JSON input format:
-{
-    "columns": ["Smoker", "Non-Smoker"],
-    "rows": ["Cancer", "Non-Cancer"],
-    "data": [
-        [5, 2], [4, 8]
-    ],
-      "switch_to_chi_square": "yes"
-}
-    If any cell has a value >100, prompt user to switch to Chi-Square Test.
-    """
+def fisher_exact_test_logic(data, input_format):
     try:
         switch_to_chi_square = data.get('switch_to_chi_square', None)
-        if db:
-              observed_data = data.get('data')
-              columns = data.get('columns')
-              rows = data.get('rows')
+
+        # --- Handle Tabular Format ---
+        if input_format == "tabular":
+            observed_data = data.get('data')
+            columns = data.get('columns')
+            rows = data.get('rows')
+
+            if not (isinstance(observed_data, list) and len(columns) == 2 and len(rows) == 2):
+                return {"error": "Invalid input. 'data' must be 2x2, and 'columns' & 'rows' must each have 2 elements."}
+
+            df = pd.DataFrame(observed_data, index=rows, columns=columns)
+
+        # --- Handle Raw Format ---
+        elif input_format == "raw":
+            raw_df = pd.DataFrame(data.get('data'))
+
+            if not {'Group', 'Category'}.issubset(raw_df.columns):
+                return {"error": "Invalid input. Raw format must contain 'Group' and 'Category' columns."}
+
+            contingency_table = pd.crosstab(raw_df['Category'], raw_df['Group'])
+
+            if contingency_table.shape != (2, 2):
+                return {"error": "Fisher's Exact Test can only be applied to 2x2 tables."}
+
+            df = contingency_table
+            observed_data = df.values.tolist()
+            columns = list(df.columns)
+            rows = list(df.index)
 
         else:
-            df = pd.DataFrame(data.get('data'))
-            if not {'Group', 'Category'}.issubset(df.columns):
-                return {"error": "Invalid input. Long format must contain 'Group' and 'Category' columns."}
-            
-            contingency_table = pd.crosstab(df['Category'], df['Group'])
-            observed_data = contingency_table.values.tolist()
-            columns = list(contingency_table.columns)
-            rows = list(contingency_table.index)
-              
+            return {"error": "Invalid or missing 'input_data_format'. Must be either 'tabular' or 'raw'."}
 
-        if not isinstance(observed_data, list) or len(columns) != 2 or len(rows) != 2:
-            return {"error": "Invalid input. 'data' must be a 2x2 list, and 'columns' & 'rows' must each have exactly 2 elements."}
-
-        df = pd.DataFrame(observed_data, index=rows, columns=columns)
-        
+        # --- Validations ---
         if df.shape != (2, 2):
-            return {"error": "Invalid input: Data must be a 2x2 contingency table."}
+            return {"error": "Input must be a 2x2 contingency table."}
 
-        if df.values.sum() > 100:
-            warning_msg = "Warning: At least one cell has a count >100. Fisher's Exact Test may not be reliable."
+        max_cell_value = df.values.max()
+        grand_total = df.values.sum()
+
+        # --- Switch to Chi-Square if needed ---
+        if max_cell_value > 100 or grand_total > 100:
+            warning_msg = "Warning: At least one cell value or the sum of all 4 cells exceeds 100. Fisher's Exact Test may not be reliable."
             if switch_to_chi_square is None:
-                return {"warning": warning_msg, "message": "Do you want to switch to Chi-Square Test? (yes/no)"}
+                return {
+                    "warning": warning_msg,
+                    "message": "Do you want to switch to Chi-Square Test? (yes/no)",
+                    "recommended_action": "Set 'switch_to_chi_square': 'yes' in your request body."
+                }
 
             elif switch_to_chi_square.lower() == "yes":
-                chi_square_module = importlib.import_module("app.api.CrossTabulation.chi_square_test_api")
-                perform_chi_square_test = getattr(chi_square_module, "perform_chi_square_test")
-                
-                logger.info("Switching to Chi-Square Test due to large cell counts.")
-                response = perform_chi_square_test()
+                logger.info("Switching to Chi-Square Test via internal dynamic API call.")
+                try:
+                    # Dynamically construct the Chi-Square API URL
+                    base_url = request.host_url.rstrip('/')
+                    chi_square_url = f"{base_url}/cross_tabulation/api/chi-square-test"
 
-                if isinstance(response, tuple):
-                    response_data, _ = response
-                else:
-                    response_data = response
+                    response = requests.post(chi_square_url, json=data)
+                    return jsonify(response.json()), response.status_code
+                except Exception as e:
+                    logger.error(f"Error calling Chi-Square Test API: {str(e)}\n{traceback.format_exc()}")
+                    return jsonify({"error": "Failed to call Chi-Square Test API"}), 500
 
-                return response_data.get_json()
-
+        # --- Run Fisher Test ---
         odds_ratio, p_value = fisher_exact(df)
         row_totals = df.sum(axis=1)
         col_totals = df.sum(axis=0)
-        grand_total = df.values.sum()
 
         expected_counts = pd.DataFrame(
             [[(row_totals.iloc[i] * col_totals.iloc[j]) / grand_total for j in range(2)] for i in range(2)],
@@ -121,6 +126,7 @@ def fisher_exact_test_logic(data, db):
         logger.error(f"Unexpected error in Fisher's Exact Test: {str(e)}")
         return {"error": f"Unexpected error: {str(e)}"}
 
+
 @fisher_exact_test_api.route('/fisher-exact-test', methods=['POST'])
 def perform_fisher_exact_test():
     """
@@ -128,8 +134,19 @@ def perform_fisher_exact_test():
     """
     try:
         data = request.get_json()
-        db = data.get("DB", False)  # Extract 'DB' from input, default to False if missing
-        result = fisher_exact_test_logic(data, db)
+        input_format = data.get("input_data_format", "tabular").lower()
+
+        if input_format not in ["tabular", "raw"]:
+            return jsonify({"error": "Invalid input_data_format. Must be 'tabular' or 'raw'."}), 400
+
+        result = fisher_exact_test_logic(data, input_format)
+
+        # If result is already a Flask Response (when forwarded from chi-square), return as-is
+        if isinstance(result, tuple):
+            return result
+
         return jsonify(result), 200
+
     except Exception as e:
+        logger.error(f"Unexpected error in perform_fisher_exact_test: {str(e)}")
         return jsonify({"error": str(e)}), 500

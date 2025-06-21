@@ -32,6 +32,8 @@ def convert_numpy_types(obj):
         return [convert_numpy_types(item) for item in obj]
     return obj
 
+
+
 @chi_square_test_api.route('/chi-square-test', methods=['POST'])
 def perform_chi_square_test():
     """
@@ -53,23 +55,28 @@ def perform_chi_square_test():
         other_statistics = data.get("other_statistics", {})
         
 
-        # Check if data follows Wide-Format (Rows, Columns, Data)
-        if "columns" in data and "rows" in data and "data" in data:
-            columns = data["columns"]
-            rows = data["rows"]
-            contingency_table = pd.DataFrame(data["data"], index=rows, columns=columns)
+        input_data_format = data.get("input_data_format")
+        if input_data_format not in ["tabular", "raw"]:
+            return jsonify({"error": "Invalid or missing 'input_data_format'. Use 'tabular' or 'raw'."}), 400
 
-        # Check if data follows Long-Format ('Group', 'Category')
-        elif "data" in data and isinstance(data["data"], list):
-            raw_data = data["data"]
+        if input_data_format == "tabular":
+            if all(key in data for key in ["columns", "rows", "data"]):
+                columns = data["columns"]
+                rows = data["rows"]
+                contingency_table = pd.DataFrame(data["data"], index=rows, columns=columns)
+            else:
+                return jsonify({"error": "For 'tabular' format, 'columns', 'rows', and 'data' fields are required."}), 400
+
+        elif input_data_format == "raw":
+            raw_data = data.get("data", [])
+            if not isinstance(raw_data, list):
+                return jsonify({"error": "For 'raw' format, 'data' must be a list of records with 'Group' and 'Category'."}), 400
+
             df = pd.DataFrame(raw_data)
-
             if "Group" in df.columns and "Category" in df.columns:
                 contingency_table = df.groupby(["Group", "Category"]).size().unstack(fill_value=0)
             else:
-                return jsonify({"error": "Invalid format: Expected 'Group' and 'Category' columns."}), 400
-        else:
-            return jsonify({"error": "Invalid input format: Expected 'columns', 'rows', and 'data' or long-format data."}), 400
+                return jsonify({"error": "For 'raw' format, each record must contain 'Group' and 'Category'."}), 400
 
         if contingency_table.empty:
             return jsonify({"error": "Generated contingency table is empty. Check input data."}), 400
@@ -89,15 +96,34 @@ def perform_chi_square_test():
                 # If more than 20% of the expected values are less than 5, use Fisher's Exact Test
                 if percentage_less_than_5 > 20:
                     logger.info("More than 20% of expected values are less than 5 in a 2x2 table, using Fisher's Exact Test.")
-                    fisher_result = fisher_exact_test_logic(data)
+                    input_format = "tabular" if input_data_format == "tabular" else "raw"
+                    fisher_result = fisher_exact_test_logic(data,  input_format)
                     return jsonify(fisher_result), 200
         
                 # Otherwise, proceed with Chi-Square test (if explicitly requested)
                 logger.info("Fisher's Exact Test not needed, using Chi-Square test for 2x2 table.")
-                fisher_result = fisher_exact_test_logic(data)  # This will run Fisher's test even if it's not explicitly requested, if above condition is not met.
+                # Determine db format: True = wide-format; False = long-format
+                input_format = "tabular" if input_data_format == "tabular" else "raw"
+                fisher_result = fisher_exact_test_logic(data,  input_format)  # This will run Fisher's test even if it's not explicitly requested, if above condition is not met.
                 return jsonify(fisher_result), 200
             else:
                 return jsonify({"error": "Fisher's Exact Test can only be applied to 2x2 tables."}), 400
+            
+        # ✅ ADD THIS CHECK HERE
+        if contingency_table.shape == (2, 2) and "use_fishers_test" not in data:
+            chi2_stat_tmp, _, _, expected_counts_tmp = chi2_contingency(contingency_table, correction=yates_correction)
+            flat_expected = expected_counts_tmp.flatten()
+            percent_lt_5 = (flat_expected < 5).sum() / len(flat_expected) * 100
+
+            if percent_lt_5 > 20:
+                warning_msg = (
+                    "Warning: More than 20% of expected values are less than 5 in a 2x2 table. "
+                    "Fisher's Exact Test is recommended. Set 'use_fishers_test': true in your input to use it."
+                )
+                logger.warning(warning_msg)
+                result = {"warning": warning_msg}
+                return jsonify(result), 200
+
             
         # Perform Chi-Square Test
         chi2_stat, p_value, dof, expected_counts = chi2_contingency(contingency_table, correction=yates_correction)
@@ -241,21 +267,24 @@ def perform_chi_square_test():
             result.setdefault("Measures of Association", {})["Phi Coefficient"] = round(phi_value, 3)
 
         # Add Cramér's V if requested
+        cramer_v = None  # ✅ fix: always initialize it
+
         if other_statistics.get("cramers_v", False):
             k = min(contingency_table.shape) - 1
             cramer_v = ((chi2_stat / (total_count * k)) ** 0.5) if k > 0 else 0
             result.setdefault("Measures of Association", {})["Cramer's V"] = round(cramer_v, 3)
 
-
         # Calculate Power of the performed test only if alpha is provided
-        if alpha is not None:
+        if alpha is not None and cramer_v is not None:  # ✅ fix: ensure it's defined
             power_analysis = GofChisquarePower()
             effect_size = cramer_v
             power = power_analysis.solve_power(effect_size=effect_size, nobs=total_count, alpha=alpha)
             result["Chi-Squared Test for Independence"]["Power of Test"] = {round(alpha, 3): round(power, 3)}
 
+
         logger.info(f"Chi-Square Test result: {result}")
         return jsonify(convert_numpy_types(result)), 200
+    
 
     except ValueError as ve:
         logger.error(LOG_VALUE_ERROR.format(str(ve)))
@@ -272,3 +301,5 @@ def perform_chi_square_test():
     except Exception as e:
         logger.error(LOG_UNEXPECTED_ERROR.format(str(e)))
         return jsonify({"error": UNEXPECTED_ERROR_MSG}), 500
+    
+

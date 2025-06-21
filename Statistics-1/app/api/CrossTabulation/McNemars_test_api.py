@@ -10,7 +10,6 @@ from flask import Blueprint, request, jsonify
 from statsmodels.stats.contingency_tables import mcnemar
 import scipy.stats as stats 
 from datetime import datetime
-from collections import Counter
 from ..helpers.constant import (
     VALUE_ERROR_MSG, KEY_ERROR_MSG, TYPE_ERROR_MSG, INDEX_ERROR_MSG, UNEXPECTED_ERROR_MSG,
     LOG_VALUE_ERROR, LOG_KEY_ERROR, LOG_TYPE_ERROR, LOG_INDEX_ERROR, LOG_UNEXPECTED_ERROR,
@@ -19,42 +18,10 @@ from ..helpers.constant import (
 from ..helpers.logger import Logger
 
 McNemars_test_api = Blueprint('mcnemar_api', __name__)
+logger = Logger(MCNEMAR_TEST_LOG_FILE_PATH)
 
 @McNemars_test_api.route('/mcnemar-test', methods=['POST'])
 def perform_mcnemar_test():
-    """
-    Perform McNemar's Test for 2x2 tables and McNemar's Symmetry Chi-square Test for NxN contingency tables.
-    Also supports categorical before/after data as input.
-    Expected JSON input formats:
-    1. Contingency Table:
-   {
-    "columns": ["Exposed", "Unexposed"],
-    "rows": ["Exposed", "Unexposed"],
-    "data": [
-        [9, 37],
-        [16, 82]
-    ],
-    "yates_correction": true
-}
-    
-    2. Raw long_format_data:
-  {
-    "long_format_data": [
-        ["Approve", "Approve"],
-        ["Disapprove", "Disapprove"],
-        ["Don't Know", "Approve"],
-        ["Disapprove", "Approve"],
-        ["Approve", "Don't Know"],
-        ["Approve", "Disapprove"],
-        ["Don't Know", "Don't Know"],
-        ["Disapprove", "Don't Know"]
-    ],
-    "yates_correction": false
-}
-
-    """
-    logger = Logger(MCNEMAR_TEST_LOG_FILE_PATH)
-    
     try:
         logger.info("Received request for McNemar's test.")
         if not request.is_json:
@@ -63,44 +30,49 @@ def perform_mcnemar_test():
         data = request.get_json()
         timestamp = datetime.now().strftime("%d %B %Y %H:%M:%S")
 
-        # Check if input is a contingency table or raw categorical data
-        if data.get("DB", False) is False and "long_format_data" in data:
-            long_format_data = data["long_format_data"]
-            yates_correction = data.get("yates_correction", False)
+        input_format = data.get("input_data_format", "tabular").lower()
+        yates_correction = data.get("yates_correction", False)
 
+        # --- RAW INPUT FORMAT ---
+        if input_format == "raw":
+            long_format_data = data.get("long_format_data", [])
             if not isinstance(long_format_data, list) or not all(isinstance(pair, list) and len(pair) == 2 for pair in long_format_data):
                 return jsonify({"error": "Invalid format for 'long_format_data'. Expected a list of [Category1, Category2] pairs."}), 400
 
-            unique_labels = list(set(label for pair in long_format_data for label in pair))
-            contingency_matrix = pd.DataFrame(0, index=unique_labels, columns=unique_labels)
+            labels = list(set(label for pair in long_format_data for label in pair))
+            contingency_matrix = pd.DataFrame(0, index=labels, columns=labels)
 
-            for category1, category2 in long_format_data:
-                contingency_matrix.loc[category1, category2] += 1
+            for before, after in long_format_data:
+                contingency_matrix.loc[before, after] += 1
 
             df = contingency_matrix
             rows, columns = list(df.index), list(df.columns)
 
-        elif all(k in data for k in ["columns", "rows", "data"]):
-            # Process precomputed contingency table input
+        # --- TABULAR FORMAT ---
+        elif input_format == "tabular":
+            if not all(k in data for k in ["columns", "rows", "data"]):
+                return jsonify({"error": "Missing 'columns', 'rows', or 'data' fields in 'tabular' input format."}), 400
+
             observed_data = data["data"]
             columns = data["columns"]
             rows = data["rows"]
-            yates_correction = data.get("yates_correction", False)
 
             if not isinstance(observed_data, list) or not all(isinstance(row, list) for row in observed_data):
-                return jsonify({"error": "Invalid input: 'data' must be a list of lists."}), 400
+                return jsonify({"error": "Invalid 'data'. Must be a list of lists."}), 400
 
             df = pd.DataFrame(observed_data, index=rows, columns=columns)
 
         else:
-            return jsonify({"error": "Invalid input format. Provide either 'before_after_data' or ('columns', 'rows', 'data')."}), 400
+            return jsonify({"error": "Invalid or missing 'input_data_format'. Use 'tabular' or 'raw'."}), 400
 
         logger.info(f"Processed data into contingency table of shape {df.shape}")
 
+        # --- Basic Shape Validation ---
         if df.shape[0] != df.shape[1]:
             return jsonify({"error": "Input matrix must be square (NxN)."}), 400
 
-        if df.shape == (2, 2):  # **McNemar's Test for 2x2 Tables**
+        # --- McNemar's Test (2x2 Only) ---
+        if df.shape == (2, 2):
             chi2_stat = mcnemar(df, exact=False, correction=yates_correction)
             p_value = chi2_stat.pvalue
             exact_p_value = mcnemar(df, exact=True).pvalue
@@ -109,13 +81,13 @@ def perform_mcnemar_test():
             odds_ratio = round(b / c, 3) if c != 0 else "Undefined"
             ci_lower = round(np.exp(np.log(odds_ratio) - 1.96 * np.sqrt(1/b + 1/c)), 3) if c != 0 and b != 0 else "Undefined"
             ci_upper = round(np.exp(np.log(odds_ratio) + 1.96 * np.sqrt(1/b + 1/c)), 3) if c != 0 and b != 0 else "Undefined"
-            
+
             p_case = round(b / (b + c), 3) if (b + c) != 0 else "Undefined"
             p_control = round(c / (b + c), 3) if (b + c) != 0 else "Undefined"
             relative_diff = round((p_case - p_control) * 100, 3) if p_case != "Undefined" and p_control != "Undefined" else "Undefined"
-            
+
             conclusion = "Reject Null Hypothesis (Significant difference)" if p_value < 0.05 else "Fail to Reject Null Hypothesis (No significant difference)"
-            
+
             result = {
                 "Test Type": "McNemar's Test",
                 "Timestamp": timestamp,
@@ -136,21 +108,23 @@ def perform_mcnemar_test():
                 "Observed Counts": df.round(3).to_dict(),
                 "Conclusion": conclusion
             }
-        else:  # **McNemar's Symmetry Chi-square Test for NxN Tables**
+
+        # --- Symmetry Chi-Square for NxN ---
+        else:
             expected = df.sum(axis=1).values.reshape(-1, 1) * df.sum(axis=0).values.reshape(1, -1) / df.values.sum()
             chi2_stat, p_value, dof, _ = stats.chi2_contingency(df)
-            
+
             symmetry_chi2 = sum(
                 (df.iloc[i, j] - df.iloc[j, i])**2 / (df.iloc[i, j] + df.iloc[j, i])
                 for i in range(df.shape[0]) for j in range(i + 1, df.shape[1])
                 if (df.iloc[i, j] + df.iloc[j, i]) > 0
             )
-            
+
             symmetry_dof = (df.shape[0] * (df.shape[0] - 1)) // 2
             symmetry_p_value = 1 - stats.chi2.cdf(symmetry_chi2, symmetry_dof)
-            
+
             conclusion = "Reject Null Hypothesis (Significant difference)" if p_value < 0.05 else "Fail to Reject Null Hypothesis (No significant difference)"
-            
+
             result = {
                 "Test Type": "McNemar's Symmetry Chi-square Test",
                 "Timestamp": timestamp,
@@ -161,10 +135,10 @@ def perform_mcnemar_test():
                 "Symmetry Degrees of Freedom": symmetry_dof,
                 "Symmetry P-Value": round(symmetry_p_value, 5),
                 "Observed Counts": df.round(3).to_dict(),
-                "Expected Counts": pd.DataFrame(expected, index=rows, columns=columns).round(3).to_dict(),
+                "Expected Counts": pd.DataFrame(expected, index=df.index, columns=df.columns).round(3).to_dict(),
                 "Conclusion": conclusion
             }
-        
+
         logger.info(f"Test result: {result}")
         return jsonify(result), 200
 
