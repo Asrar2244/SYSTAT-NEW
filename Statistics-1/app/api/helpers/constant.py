@@ -7,31 +7,6 @@ ONE_SAMPLE_T_TEST_LOG_FILE_PATH = os.path.join(os.path.dirname(__file__), '..', 
 TWO_SAMPLE_T_TEST_LOG_FILE_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'logs', 'two_sample_t_test_api.log')
 PAIRED_T_TEST_LOG_FILE_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'logs', 'paired_t_test_api.log')
 
-CHI_SQUARE_LOG_FILE_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'logs', 'crosstabulation', 'chi_square_api.log')
-FISHER_EXACT_TEST_LOG_FILE_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'logs', 'crosstabulation', 'fisher_exact_test_api.log')
-MCNEMAR_TEST_LOG_FILE_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'logs', 'crosstabulation', 'McNemars_test_api.log')
-RELATIVE_RISK_LOG_FILE_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'logs', 'crosstabulation', 'Relative_risk_api.log')
-ODDS_RATIO_LOG_FILE_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'logs', 'crosstabulation', 'Odds_Ratio_api.log')
-
-SAMPLE_SIZE_TTEST_LOG_FILE_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'logs', 'Sample_size', 'Sample_size_ttest_api.log')
-SAMPLE_SIZE_PAIRED_TTEST_LOG_FILE_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'logs', 'Sample_size', 'Sample_size_paired_ttest_api.log')
-SAMPLE_SIZE_PROPORTION_TEST_LOG_FILE_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'logs', 'Sample_size', 'Sample_size_proportion_api.log')
-SAMPLE_SIZE_ANOVA_LOG_FILE_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'logs', 'Sample_size', 'Sample_size_ANOVA_api.log')
-SAMPLE_SIZE_CHISQUARE_LOG_FILE_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'logs', 'Sample_size', 'Sample_size_Chi_square_api.log')
-SAMPLE_SIZE_CORRELATION_LOG_FILE_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'logs', 'Sample_size', 'Sample_size_Correlation_api.log')
-
-
-TTEST_POWER_LOG_FILE_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'logs', 'Power', 'Power_t_test_api.log')
-POWER_PAIRED_TTEST_LOG_FILE_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'logs', 'Power', 'Power_Paired_t_test_api.log')
-PROPORTION_TEST_POWER_LOG_FILE_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'logs', 'Power', 'Power_Proportions_api.log')
-ANOVA_POWER_LOG_FILE_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'logs', 'Power', 'Power_ANOVA_api.log')
-CHISQUARE_POWER_LOG_FILE_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'logs', 'Power', 'Power_Chi_square_api.log')
-CORRELATION_POWER_LOG_FILE_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'logs', 'Power', 'Power_Correlation_api.log')
-
-
-
-
-
 #pre-defined input values
 ALPHA_VALUE_DEFAULT = 0.05
 YATES_CORRECTION_DEFAULT = 0
@@ -42,12 +17,6 @@ P_VALUE_REJECT_DEFAULT = 0.05
 SAMPLE_SIZE_MIN = 2
 EQUAL_VARIANCE_DEFAULT = 0.05
 
-# Predefined constants for Cross Tabulation tests
-EXPECTED_COUNT_THRESHOLD = 5  # Fisher’s test triggers if expected count <5
-CROSS_TAB_ALPHA_DEFAULT = 0.05  # Default significance level for tests
-CONTINGENCY_TABLE_MIN_SIZE = (2, 2)  # Minimum required table size for Fisher's Exact Test
-
-
 # Error message constants
 INVALID_JSON_ERROR = "Invalid input. Please provide JSON data."
 VALUE_ERROR_MSG = "Invalid input value: {}"
@@ -57,7 +26,6 @@ ZERO_DIVISION_ERROR_MSG = "Division by zero encountered during calculation."
 INDEX_ERROR_MSG = "Error while processing data. Ensure proper data structure."
 UNEXPECTED_ERROR_MSG = "An unexpected error occurred. Please try again later."
 
-
 # Logging error messages
 LOG_VALUE_ERROR = "ValueError: {}"
 LOG_KEY_ERROR = "KeyError: {}"
@@ -65,3 +33,34 @@ LOG_TYPE_ERROR = "TypeError: {}"
 LOG_ZERO_DIVISION_ERROR = "ZeroDivisionError: {}"
 LOG_INDEX_ERROR = "IndexError: {}"
 LOG_UNEXPECTED_ERROR = "Unexpected error: {}"
+
+# data vars
+POPULATION_MEAN = "population_mean"
+CONFIDENCE_LEVEL = "confidence_level"
+P_VALUE_REJECT = "p_value_reject"
+ALTERNATIVE = "alternative"
+ALPHA_VALUE = "alpha_value"
+SHAPIRO_WILK = "shapiro_wilk"
+KOLMOGOROV_SMIRNOV = "kolmogorov_smirnov"
+YATES_CORRECTION = "yates_correction"
+SAMPLE = "sample"
+VALUES = "values"
+SIZE = "size"
+SAMPLE_SIZE = "sample_size"
+MEAN = "mean"
+DEVIATION = "deviation"
+STD_ERR = "standard_error"
+
+
+# result vars
+T_STATISTIC = "t_statistic"
+VALUES = "values"
+P_VALUE = "p_value"
+RESULT = "result"
+CONFIDENCE_INTERVAL = "confidence_interval"
+NORMALITY_TESTS = "normality_tests"
+CONCLUSION_TWO_TAILED = "Conclusion_two_tailed"
+CONCLUSION_ONE_TAILED = "Conclusion_one_tailed"
+STATISTICAL_POWER = "statistical_power"
+POWER_ONE_TAILED = "power_of_performed_two_tailed_test_with_alpha"
+POWER_TWO_TAILED = "power_of_performed_one_tailed_test_with_alpha"

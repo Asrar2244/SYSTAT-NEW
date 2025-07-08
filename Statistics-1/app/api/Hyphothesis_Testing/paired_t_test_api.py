@@ -25,18 +25,19 @@ from app.api.helpers.constant import (
 )
 from app.api.helpers.logger import Logger
 
+logger = Logger(PAIRED_T_TEST_LOG_FILE_PATH)
 paired_t_test_api = Blueprint('paired_t_test_api', __name__)
 
 @paired_t_test_api.route('/paired-t-test-api', methods=['POST'])
 def perform_paired_t_test():
-    logger = Logger(PAIRED_T_TEST_LOG_FILE_PATH)
+    
 
     try:
         if not request.is_json:
             return jsonify({"error": "Invalid input. Please provide JSON data."}), 400
 
         data = request.get_json()
-        logger.info(f"Received data: {data}")
+        logger.info(f"Received data here: {data}")
 
         # Extract parameters
         confidence_level = float(data.get("confidence_level", CONFIDENCE_INTERVAL_DEFAULT))
@@ -46,11 +47,13 @@ def perform_paired_t_test():
         kolmo_with_correction = data.get("kolmo_with_correction", False)
         db_fetched = data.get("db", False)  # Ensure 'db' is fetched
 
+        logger.info(f"Received data: step1")
         if not (0 < confidence_level < 1):
             return jsonify({"error": "Confidence level must be between 0 and 1."}), 400
 
         # Determine Input Format
         if "before" in data and "after" in data:
+            logger.info(f"Received data: coming step2")
             before, after = data["before"], data["after"]
             before_col, after_col = "before", "after"
 
@@ -60,6 +63,7 @@ def perform_paired_t_test():
         # each subject - has 2 values of each treatment type
         # values - int/float
         elif "subject" in data and "treatment" in data and "values" in data:
+            logger.info(f"Received data: coming step3")
             # Convert long format to wide format
             df = pd.DataFrame({
                 "subject": data["subject"],
@@ -69,6 +73,7 @@ def perform_paired_t_test():
              
             # Asrar: Added validation to ensure exactly two treatment types exist.
             unique_treatments = df["treatment"].unique()
+            
             if len(unique_treatments) != 2:
                 return jsonify({"error": "Invalid format: Exactly two treatment types required."}), 400
             
@@ -84,7 +89,7 @@ def perform_paired_t_test():
             if wide_df.isnull().values.any():
                 return jsonify({"error": "Invalid format: Missing values after pivoting."}), 400
             
-
+            logger.info(f"Received data: step4")
             # Asrar: Stored treatment labels dynamically to maintain consistency in output.
             # Ensured the correct assignment of 'before' and 'after' groups based on treatment labels.
             treatment_labels = list(wide_df.columns)
@@ -126,6 +131,7 @@ def perform_paired_t_test():
 def calculate_paired_t_test(before, after, before_col, after_col, confidence_level, alpha, shaprio_walk, db_fetched, kolmo_with_correction):
     differences = np.array(before) - np.array(after)  # Corrected: before - after
 
+    logger.info(f"Received data: step5 into calculate_paired_t_test")
     # Compute sample statistics
     mean_before, mean_after = np.mean(before), np.mean(after)
     std_dev_before, std_dev_after = np.std(before, ddof=1), np.std(after, ddof=1)
@@ -144,6 +150,7 @@ def calculate_paired_t_test(before, after, before_col, after_col, confidence_lev
     normality_tests = {}
     if shaprio_walk:
             shapiro_test_stat, shapiro_p_value = stats.shapiro(differences)
+
             normality_tests["Shapiro-Wilk"] = {
                 "Result": "Passed" if shapiro_p_value > 0.05 else "Failed",
                 "P-Value": round(shapiro_p_value, 3)
@@ -167,6 +174,9 @@ def calculate_paired_t_test(before, after, before_col, after_col, confidence_lev
             f"Power of performed two-tailed test with alpha = {alpha:.3f}": round(power_two_tailed, 3),
             f"Power of performed one-tailed test with alpha = {alpha:.3f}": round(power_one_tailed, 3)
         }
+
+    # NOOR - Added for logging the results
+    direction = "increased" if mean_after > mean_before else "decreased"
 
     # Generate the final output
     result = {
@@ -199,10 +209,16 @@ def calculate_paired_t_test(before, after, before_col, after_col, confidence_lev
         "T-Test Results": {
             "t-Statistic": round(t_stat, 3),
             "Degrees of Freedom": df,
-            "95% Confidence Interval for Difference of Means": [round(ci_low, 3), round(ci_high, 3)],
+            # NOOR - Added for logging the results
+            "Confidence Interval for Difference of Means": [round(ci_low, 3), round(ci_high, 3)],
             "Two-Tailed P-Value": round(p_value, 5),
             "One-Tailed P-Value": round(one_tailed_p, 5),
-            "Interpretation": f"The change that occurred with the treatment is {'statistically significant' if p_value < alpha else 'not statistically significant'} (P = {round(p_value, 5)})"
+            "Interpretation_two_tailed": f"The change that occurred with the treatment is {'statistically significant' if p_value < alpha else 'not statistically significant'} (P = {round(p_value, 5)})",
+            # NOOR - Added for logging the results
+            "Interpretation_one_tailed": f"The sample mean after treatment is significantly {direction} "
+                                         f"than the sample mean before treatment (P = {round(one_tailed_p, 5)})"
+                                         f"{'rejecting' if one_tailed_p < alpha else 'failing to reject'} the null hypothesis "
+                                         f"at α = {alpha}."
         },
         "Power Analysis": power_results
     }
