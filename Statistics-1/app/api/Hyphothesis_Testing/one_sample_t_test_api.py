@@ -22,6 +22,7 @@ from app.api.helpers.constant import (
     P_VALUE_REJECT_DEFAULT,
     ALPHA_VALUE_DEFAULT
 )
+import app.api.helpers.constant as constant
 from app.api.helpers.logger import Logger
 
 one_sample_t_test_api = Blueprint('one_sample_t_test', __name__)
@@ -35,30 +36,30 @@ def perform_one_sample_t_test():
     try:
         data = request.get_json()
         
-        population_mean = float(data.get("population_mean", POPULATION_MEAN_DEFAULT))
-        confidence_level = float(data.get("confidence_level", CONFIDENCE_INTERVAL_DEFAULT))
-        p_value_reject = float(data.get("P_value_reject", P_VALUE_REJECT_DEFAULT))
-        alpha = float(data.get("alpha_value", ALPHA_VALUE_DEFAULT))
+        population_mean = float(data.get(constant.POPULATION_MEAN, POPULATION_MEAN_DEFAULT))
+        confidence_level = float(data.get(constant.CONFIDENCE_LEVEL, CONFIDENCE_INTERVAL_DEFAULT))
+        p_value_reject = float(data.get(constant.P_VALUE_REJECT, P_VALUE_REJECT_DEFAULT))
+        alpha = float(data.get(constant.ALPHA_VALUE, ALPHA_VALUE_DEFAULT))
         
-        shaprio_walk = data.get("shaprio_walk", False)
-        kolmo_with_correction = data.get("kolmo_with_correction", False)
-        db_fetched = data.get("DB", False)
+        shaprio_wilk = data.get(constant.SHAPIRO_WILK, True)
+        kolmo_with_correction = data.get(constant.KOLMOGOROV_SMIRNOV, False)
+        
         
  # Handle input: Either "sample" or "values"
-        if "sample" in data:
-            sample_data = data["sample"]
+        if constant.SAMPLE in data:
+            sample_data = data[constant.SAMPLE]
             if not isinstance(sample_data, list) or len(sample_data) < 2:
                 raise ValueError("Sample data must contain at least two data points.")
             sample_size = len(sample_data)
             sample_mean = np.mean(sample_data)
             sample_std = np.std(sample_data, ddof=1)
 
-        elif "values" in data:
-            values = data["values"]
-            sample_size = values.get("size")
-            sample_mean = values.get("mean")
-            sample_std = values.get("deviation")
-            standard_error = values.get("standard_error")
+        elif constant.VALUES in data:
+            values = data[constant.VALUES]
+            sample_size = values.get(constant.SIZE)
+            sample_mean = values.get(constant.MEAN)
+            sample_std = values.get(constant.DEVIATION)
+            standard_error = values.get(constant.STD_ERR)
 
             # Validate values input
             if not all(isinstance(x, (int, float)) for x in [sample_size, sample_mean]) or (sample_std is None and standard_error is None):
@@ -106,7 +107,7 @@ def perform_one_sample_t_test():
         )
 
         result = {
-            "Test Type": "One-Sample t-test",
+            "Test Type": "One_Sample_t_test",
             "Sample Statistics": {
                 "Sample Size": sample_size,
                 "Sample Mean": round(sample_mean, 3),
@@ -116,8 +117,8 @@ def perform_one_sample_t_test():
                 "Hypothesized Population Mean": population_mean,
                 "t-Statistic": round(t_stat, 3),
                 "P-Value": round(p_value, 3),
-                "Two-tailed P-Value": round(p_value_two_tailed, 8),
-                "One-tailed P-Value": round(p_value_one_tailed, 8),
+                "Two_tailed_P_Value": round(p_value_two_tailed, 8),
+                "One_tailed_P_Value": round(p_value_one_tailed, 8),
 
                 "Confidence Interval": {
                     "Lower Bound": round(lower_bound, 3),
@@ -128,38 +129,56 @@ def perform_one_sample_t_test():
         }
         
         # Perform normality tests if specified
-        if db_fetched and "sample" in data:
-            normality_tests = {}
-            
-            if shaprio_walk:
+        if constant.SAMPLE in data:
+            normality_tests = {}    
+            if shaprio_wilk:
                 shapiro_test_stat, shapiro_p_value = stats.shapiro(sample_data)
-                normality_tests["Shapiro-Wilk"] = {
-                    "Result": "Passed" if shapiro_p_value > 0.05 else "Failed",
-                    "P-Value": round(shapiro_p_value, 3)
+                # NOOR - Added for logging the results
+                #normality_tests["Shapiro-Wilk"] = {
+                normality_tests[constant.VALUES] = {
+                    constant.RESULT: "Passed" if shapiro_p_value > 0.05 else "Failed",
+                    constant.P_VALUE: round(shapiro_p_value, 3)
                 }
             
             if kolmo_with_correction:
                 ks_stat, ks_p_value = lilliefors(sample_data)
-                normality_tests["Kolmogorov-Smirnov"] = {
-                    "Result": "Passed" if ks_p_value > 0.05 else "Failed",
-                    "P-Value": round(ks_p_value, 3)
+                #normality_tests["Kolmogorov-Smirnov"] = {
+                normality_tests[constant.VALUES] = {
+                    constant.RESULT: "Passed" if ks_p_value > 0.05 else "Failed",
+                    constant.P_VALUE : round(ks_p_value, 3)
                 }
             
-            result["Normality Tests"] = normality_tests
+            result[constant.NORMALITY_TESTS] = normality_tests
 
         # Compute statistical power
         effect_size = abs(sample_mean - population_mean) / sample_std
         power_two_tailed = stats.nct.sf(stats.t.ppf(1 - alpha / 2, degrees_of_freedom), degrees_of_freedom, effect_size * np.sqrt(sample_size))
         power_one_tailed = stats.nct.sf(stats.t.ppf(1 - alpha, degrees_of_freedom), degrees_of_freedom, effect_size * np.sqrt(sample_size))
-            
-        result["Statistical Power"] = {
-                f"Power of performed two-tailed test with alpha = {alpha}": round(power_two_tailed, 3),
-                "Power Conclusion Two-tailed": f"The power of the performed test ({round(power_two_tailed, 3)}) is below the desired power of 0.800. Less than desired power indicates you are less likely to detect a difference when one actually exists. Negative results should be interpreted cautiously.",
-                f"Power of performed one-tailed test with alpha = {alpha}": round(power_one_tailed, 3),
-                "Power Conclusion One-tailed": f"The power of the performed test ({round(power_one_tailed, 3)}) is below the desired power of 0.800. Less than desired power indicates you are less likely to detect a difference when one actually exists. Negative results should be interpreted cautiously."
-            }
+        
+        # NOOR - Added for logging the results
+        p_val_two_tailed = round(p_value_two_tailed, 3)
+        lower_bound = round(lower_bound, 3)
+        upper_bound = round(upper_bound, 3)
+        if p_val_two_tailed < 0.001 or not (lower_bound <= population_mean <= upper_bound):
+            #result["Conclusion"] += " The p-value is very small, indicating a strong evidence against the null hypothesis."
+            result[constant.CONCLUSION_TWO_TAILED] = False
+        else:
+            result[constant.CONCLUSION_TWO_TAILED] = True
+        if p_value_one_tailed < 0.001 or not (lower_bound <= population_mean <= upper_bound):
+            #result["Conclusion"] += " The p-value is very small, indicating a strong evidence against the null hypothesis."
+            result[constant.CONCLUSION_ONE_TAILED] = False
+        else:
+            result[constant.CONCLUSION_ONE_TAILED] = True
 
-    
+        # NOOR - Added for logging the results
+        # NOOR TODO: conclusion decide later
+        result[constant.STATISTICAL_POWER] = {
+                constant.POWER_TWO_TAILED: f"Power of performed two-tailed test with alpha {alpha} : {round(power_two_tailed, 3)}",
+                constant.POWER_ONE_TAILED: f"Power of performed one-tailed test with alpha {alpha} : {round(power_one_tailed, 3)}"
+            #"Power Conclusion Two-tailed": f"The power of the performed test ({round(power_two_tailed, 3)}) is below the desired power of 0.800. Less than desired power indicates you are less likely to detect a difference when one actually exists. Negative results should be interpreted cautiously.",
+            #"Power Conclusion One-tailed": f"The power of the performed test ({round(power_one_tailed, 3)}) is below the desired power of 0.800. Less than desired power indicates you are less likely to detect a difference when one actually exists. Negative results should be interpreted cautiously."
+           }
+ 
         logger.info(json.dumps(result))
         return jsonify(result), 200
 

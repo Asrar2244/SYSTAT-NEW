@@ -1,0 +1,19 @@
+from flask import Blueprint
+
+sample_size_api_blueprint = Blueprint('Sample_size_api', __name__)
+
+
+from .t_test_Sample_size_api import ttest_sample_size_api
+from .paired_t_test_Sample_size_api import paired_ttest_sample_size_api
+from .proportions_Sample_size_api import proportion_sample_size_api
+from .ANOVA_Sample_size_api import anova_sample_size_api
+from .Chi_square_Sample_size_api import chisquare_sample_size_api
+from .correlation_Sample_size_api import correlation_sample_size_api
+
+
+sample_size_api_blueprint.register_blueprint(ttest_sample_size_api)
+sample_size_api_blueprint.register_blueprint(paired_ttest_sample_size_api)
+sample_size_api_blueprint.register_blueprint(proportion_sample_size_api)
+sample_size_api_blueprint.register_blueprint(anova_sample_size_api)
+sample_size_api_blueprint.register_blueprint(chisquare_sample_size_api)
+sample_size_api_blueprint.register_blueprint(correlation_sample_size_api)

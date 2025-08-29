@@ -1,0 +1,16 @@
+from flask import Blueprint
+
+crossTabulation_api_blueprint = Blueprint('crossTabulation_api', __name__)
+
+from .chi_square_test_api import chi_square_test_api
+from .fisher_exact_test_api import fisher_exact_test_api
+from .McNemars_test_api import McNemars_test_api
+from .Relative_risk_api import relative_risk_api
+from .Odds_Ratio_api import odds_ratio_api
+
+
+crossTabulation_api_blueprint.register_blueprint(chi_square_test_api)
+crossTabulation_api_blueprint.register_blueprint(fisher_exact_test_api)
+crossTabulation_api_blueprint.register_blueprint(McNemars_test_api)
+crossTabulation_api_blueprint.register_blueprint(relative_risk_api)
+crossTabulation_api_blueprint.register_blueprint(odds_ratio_api)
