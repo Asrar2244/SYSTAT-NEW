@@ -1,0 +1,18 @@
+
+from flask import Blueprint
+
+survival_api_blueprint = Blueprint('survival_api', __name__)
+
+
+from .survival_api import survival_api
+from .survival_logRank_api import survival_logrank_api
+from .gehan_breslow_api import gehan_breslow_api
+from .Cox_PH_api import cox_model_api
+from .cox_stratified_model_api import cox_stratified_model_api
+
+
+survival_api_blueprint.register_blueprint(survival_api)
+survival_api_blueprint.register_blueprint(survival_logrank_api)
+survival_api_blueprint.register_blueprint(gehan_breslow_api)
+survival_api_blueprint.register_blueprint(cox_model_api)
+survival_api_blueprint.register_blueprint(cox_stratified_model_api)

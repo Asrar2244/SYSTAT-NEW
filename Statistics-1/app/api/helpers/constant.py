@@ -28,6 +28,9 @@ ANOVA_POWER_LOG_FILE_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 
 CHISQUARE_POWER_LOG_FILE_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'logs', 'Power', 'Power_Chi_square_api.log')
 CORRELATION_POWER_LOG_FILE_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'logs', 'Power', 'Power_Correlation_api.log')
 
+NORMALITY_TEST_LOG_FILE_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'logs', 'correlation', 'normality_test.log')
+PCA_LOG_FILE_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'logs', 'correlation', 'PCA_test.log')
+PEARSON_TEST_LOG_FILE_PATH = os.path.join(os.path.dirname(__file__), '..', '..', 'logs', 'correlation', 'Pearson_test.log')
 
 
 

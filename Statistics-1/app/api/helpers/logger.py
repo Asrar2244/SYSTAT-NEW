@@ -39,3 +39,14 @@ class Logger:
     def debug(self, message):
         """Log a debug message."""
         self.logger.debug(message, stacklevel=2)
+
+    def log_exception(self, context, message):
+        """
+        Log an exception with additional context.
+        
+        Args:
+            context (str): Custom context or label for the log entry (e.g., "LOG_VALUE_ERROR").
+            message (str): The error message to log.
+        """
+        self.logger.exception(f"{context} - {message}", stacklevel=2)
+

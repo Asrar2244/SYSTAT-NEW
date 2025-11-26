@@ -1,16 +1,22 @@
 from flask import Flask
+from flask_cors import CORS  # Import CORS
+
 from app.api.Hyphothesis_Testing import api_blueprint
 from app.api.CrossTabulation import crossTabulation_api_blueprint
 from app.api.Sample_size import sample_size_api_blueprint
 from app.api.Power import Power_api_blueprint
+from app.api.Survival_Analysis import survival_api_blueprint
+from app.api.Correlation import correlation_api_blueprint
 
 def create_app():
     app = Flask(__name__)
+
 
     app.register_blueprint(api_blueprint, url_prefix='/hyphothesis/api')
     app.register_blueprint(crossTabulation_api_blueprint, url_prefix='/cross_tabulation/api')
     app.register_blueprint(sample_size_api_blueprint, url_prefix='/sample_size/api')
     app.register_blueprint(Power_api_blueprint, url_prefix='/power/api')
+    app.register_blueprint(survival_api_blueprint, url_prefix='/survival/api')
+    app.register_blueprint(correlation_api_blueprint, url_prefix='/correlation/api')
 
-
-    return app 
+    return app
